@@ -1,0 +1,27 @@
+{
+  "pages": [
+ //    {
+ //      "path": "pages/login/index",
+ //      "style": {
+ //        "navigationBarTitleText": "智慧教育平台",
+ //        "navigationStyle": "custom"
+ //      }
+ //    },
+ //    {
+ //      "path": "pages/admin/dashboard/index"
+      
+	// },
+	{
+		"path": "pages/chat/chat",
+		"style": {
+			"navigationBarTitleText": "AI助手"
+		}
+	}
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "智慧教育平台",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  }
+}

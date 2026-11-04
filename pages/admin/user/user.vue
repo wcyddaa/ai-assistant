@@ -1,5 +1,14 @@
 <template>
 	<view class="user-management">
+		<view class="page-header">
+			<view class="header-left">
+				<text class="header-kicker">USER DIRECTORY</text>
+				<text class="page-title-sm">用户管理</text>
+				<text class="header-sub">账号 · 身份 · 状态</text>
+			</view>
+			<button class="btn btn-primary btn-add" @click="handleAdd">添加用户</button>
+		</view>
+
 		<!-- 查询区域 -->
 		<view class="search-area">
 			<view class="search-row">
@@ -22,11 +31,6 @@
 			</view>
 		</view>
 
-		<!-- 操作按钮区域 -->
-		<view class="action-area">
-			<button class="btn btn-success" @click="handleAdd">添加用户</button>
-		</view>
-
 		<!-- 表格区域 -->
 		<view class="table-area">
 			<view class="table-header">
@@ -41,7 +45,7 @@
 			</view>
 			<view class="table-body">
 				<view class="table-row" v-for="user in userList" :key="user.id">
-					<view class="table-cell" style="width: 60px;">{{ user.id }}</view>
+					<view class="table-cell id-cell" style="width: 60px;">{{ user.id }}</view>
 					<view class="table-cell" style="width: 120px;">{{ user.username }}</view>
 					<view class="table-cell" style="width: 120px;">{{ user.number }}</view>
 					<view class="table-cell" style="width: 80px;">
@@ -52,8 +56,8 @@
 					<view class="table-cell" style="width: 80px;">
 						{{ user.type === 1 ? '管理员' : user.type === 2 ? '老师' : '学生' }}
 					</view>
-					<view class="table-cell" style="width: 150px;">{{ formatTime(user.createTime) }}</view>
-					<view class="table-cell" style="width: 150px;">{{ formatTime(user.updateTime) }}</view>
+					<view class="table-cell cell-sub" style="width: 150px;">{{ formatTime(user.createTime) }}</view>
+					<view class="table-cell cell-sub" style="width: 150px;">{{ formatTime(user.updateTime) }}</view>
 					<view class="table-cell" style="flex: 1;">
 						<button class="btn btn-sm btn-warning" @click="handleEdit(user)">编辑</button>
 						<button class="btn btn-sm btn-danger" @click="handleDelete(user.id)">删除</button>
@@ -63,7 +67,8 @@
 					</view>
 				</view>
 				<view class="table-empty" v-if="userList.length === 0">
-					<text>暂无数据</text>
+					<text class="empty-text">暂无数据</text>
+					<text class="empty-caption">NO RECORDS</text>
 				</view>
 			</view>
 		</view>
@@ -189,11 +194,27 @@ interface User {
 	updaterId: number
 }
 
+// 用户提交数据
+interface UserData {
+	username: string
+	number: string
+	type: number
+	status: number
+	id?: number
+	password?: string
+}
+
 // 搜索表单
-const searchForm = reactive({
-	id: '' as string,
-	username: '' as string,
-	number: '' as string
+interface SearchForm {
+	id: string
+	username: string
+	number: string
+}
+
+const searchForm = reactive<SearchForm>({
+	id: '',
+	username: '',
+	number: ''
 })
 
 // 分页参数
@@ -445,7 +466,7 @@ const handleSave = async () => {
 	try {
 		let url = BASE_URL
 		let method = 'POST'
-		const userData: any = {
+		const userData: UserData = {
 			username: formData.username.trim(),
 			number: formData.number.trim(),
 			type: formData.type,
@@ -691,254 +712,384 @@ onMounted(() => {
 })
 </script>
 
-<style>
+<style scoped>
+/* =========================================================
+   用户管理 · 教育档案室
+   ========================================================= */
 .user-management {
-	padding: 20px;
-	background: #f5f7fa;
-	min-height: 100vh;
+	width: 100%;
+	max-width: 1280px;
+	margin: 0 auto;
+	box-sizing: border-box;
+	padding: 24px 28px 40px;
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	background: transparent;
 }
 
-/* 查询区域 */
+/* ========== 页面头部 ========== */
+.page-header {
+	display: flex;
+	align-items: flex-end;
+	justify-content: space-between;
+	gap: 18px;
+	padding-bottom: 16px;
+	border-bottom: 1px solid var(--line);
+}
+
+.header-left {
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.header-kicker {
+	font-size: 9px;
+	letter-spacing: 0.28em;
+	color: var(--accent);
+}
+
+.page-title-sm {
+	font-family: var(--font-display);
+	font-size: 24px;
+	font-weight: 600;
+	line-height: 1.2;
+	letter-spacing: 0.03em;
+	color: var(--ink);
+}
+
+.header-sub {
+	font-size: 11px;
+	letter-spacing: 0.12em;
+	color: var(--muted);
+}
+
+/* ========== 查询区域 ========== */
 .search-area {
-	background: #ffffff;
-	padding: 20px;
-	border-radius: 8px;
-	margin-bottom: 16px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+	padding: 14px 16px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-soft);
 }
 
 .search-row {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 16px;
+	gap: 14px;
 }
 
 .search-item {
 	display: flex;
 	align-items: center;
+	gap: 6px;
 }
 
 .label {
-	font-size: 14px;
-	color: #333;
+	font-size: 11px;
+	letter-spacing: 0.1em;
+	color: var(--muted);
 	white-space: nowrap;
-	margin-right: 4px;
 }
 
 .input {
-	width: 140px;
-	height: 32px;
-	border: 1px solid #dcdfe6;
-	border-radius: 4px;
-	padding: 0 10px;
-	font-size: 14px;
+	width: 150px;
+	height: 36px;
+	padding: 0 12px;
+	box-sizing: border-box;
+	font-size: 13px;
+	color: var(--ink);
+	background: var(--surface-raised);
+	border: 1px solid var(--line);
+	border-radius: 10px;
 	outline: none;
+	transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .input:focus {
-	border-color: #409eff;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px rgba(180, 83, 42, 0.1);
 }
 
 .search-actions {
 	display: flex;
-	gap: 8px;
+	gap: 10px;
 	margin-left: auto;
 }
 
-/* 操作按钮区域 */
-.action-area {
-	margin-bottom: 16px;
-}
-
-/* 按钮样式 */
+/* ========== 按钮 ========== */
 .btn {
-	padding: 6px 16px;
-	border: none;
-	border-radius: 4px;
-	font-size: 14px;
-	cursor: pointer;
-	transition: all 0.3s;
+	height: 36px;
+	padding: 0 16px;
+	box-sizing: border-box;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	font-size: 12.5px;
+	letter-spacing: 0.04em;
+	border: 1px solid transparent;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all 0.18s ease;
+}
+
+.btn-add {
+	height: 38px;
+	padding: 0 20px;
 }
 
 .btn-sm {
-	padding: 3px 10px;
-	font-size: 12px;
-	margin-right: 4px;
+	height: 28px;
+	padding: 0 10px;
+	font-size: 11.5px;
+	border-radius: 8px;
+	margin-right: 6px;
 }
 
 .btn-primary {
-	background: #409eff;
-	color: #fff;
+	background: var(--ink);
+	color: #F8F3E8;
+	border-color: var(--ink);
 }
-.btn-primary:hover {
-	background: #66b1ff;
+.btn-primary:hover { background: #24334F; }
+
+.btn-default {
+	background: transparent;
+	color: var(--ink-2);
+	border-color: var(--line-strong);
+}
+.btn-default:hover {
+	color: var(--accent-ink);
+	border-color: var(--accent);
+	background: var(--accent-soft);
 }
 
 .btn-success {
-	background: #67c23a;
-	color: #fff;
+	background: #E7EFE8;
+	color: var(--success);
+	border-color: rgba(63, 107, 82, 0.2);
 }
-.btn-success:hover {
-	background: #85ce61;
-}
+.btn-success:hover { background: rgba(63, 107, 82, 0.2); border-color: var(--success); }
 
 .btn-warning {
-	background: #e6a23c;
-	color: #fff;
+	background: transparent;
+	color: var(--ink-2);
+	border-color: var(--line);
 }
 .btn-warning:hover {
-	background: #ebb563;
+	color: var(--accent-ink);
+	border-color: var(--accent);
+	background: var(--accent-soft);
 }
 
 .btn-danger {
-	background: #f56c6c;
-	color: #fff;
+	background: #F5E4E0;
+	color: var(--danger);
+	border-color: rgba(163, 59, 46, 0.2);
 }
-.btn-danger:hover {
-	background: #f78989;
-}
+.btn-danger:hover { background: rgba(163, 59, 46, 0.16); border-color: var(--danger); }
 
 .btn-info {
-	background: #909399;
-	color: #fff;
+	background: #E4EBF2;
+	color: var(--info);
+	border-color: rgba(53, 89, 127, 0.18);
 }
-.btn-info:hover {
-	background: #a6a9ad;
-}
-
-.btn-default {
-	background: #f5f7fa;
-	color: #606266;
-	border: 1px solid #dcdfe6;
-}
-.btn-default:hover {
-	background: #ecf5ff;
-	border-color: #c6e2ff;
-	color: #409eff;
-}
+.btn-info:hover { background: rgba(53, 89, 127, 0.18); border-color: var(--info); }
 
 .btn:disabled {
-	opacity: 0.6;
+	opacity: 0.35;
 	cursor: not-allowed;
 }
 
-/* 表格区域 */
+/* ========== 表格区域 ========== */
 .table-area {
-	background: #ffffff;
-	border-radius: 8px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-soft);
 	overflow: hidden;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .table-header {
 	display: flex;
-	background: #f5f7fa;
-	border-bottom: 1px solid #ebeef5;
-	font-weight: 600;
-	font-size: 14px;
-	color: #333;
+	align-items: center;
+	background: var(--surface);
+	border-bottom: 1px solid var(--line);
 }
 
 .table-row {
 	display: flex;
-	border-bottom: 1px solid #ebeef5;
-	font-size: 13px;
-	color: #606266;
-	min-height: 44px;
 	align-items: center;
+	min-height: 48px;
+	background: var(--surface-raised);
+	border-bottom: 1px solid var(--line);
+	font-size: 13px;
+	color: var(--ink-2);
+	transition: background 0.18s ease, box-shadow 0.18s ease;
 }
 
 .table-row:hover {
-	background: #f5f7fa;
+	background: #FFFCF5;
+	box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+
+.table-body .table-row:last-child { border-bottom: none; }
+
+.table-row .table-cell:last-child {
+	flex-wrap: wrap;
+	gap: 4px 0;
 }
 
 .table-cell {
-	padding: 8px 10px;
 	display: flex;
 	align-items: center;
+	padding: 12px 16px;
+	box-sizing: border-box;
 	word-break: break-all;
 }
 
+.table-header .table-cell {
+	padding: 12px 16px;
+	font-size: 10.5px;
+	font-weight: 500;
+	letter-spacing: 0.12em;
+	color: var(--muted);
+}
+
+.id-cell {
+	font-family: var(--font-mono);
+	font-size: 11.5px;
+	color: var(--muted);
+}
+
+.cell-sub {
+	font-family: var(--font-mono);
+	font-size: 11px;
+	letter-spacing: 0.02em;
+	color: var(--muted);
+	white-space: nowrap;
+}
+
 .status-badge {
-	padding: 2px 10px;
-	border-radius: 10px;
-	font-size: 12px;
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 10px;
+	border-radius: 999px;
+	font-size: 11px;
+	letter-spacing: 0.06em;
+	white-space: nowrap;
 }
 
-.status-active {
-	background: #d4edda;
-	color: #155724;
+.status-badge::before {
+	content: '';
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: currentColor;
+	opacity: 0.72;
 }
 
-.status-disabled {
-	background: #f8d7da;
-	color: #721c24;
-}
+.status-active { background: #E7EFE8; color: var(--success); }
+.status-disabled { background: #F5E4E0; color: var(--danger); }
 
+/* ========== 空状态 ========== */
 .table-empty {
-	padding: 40px;
-	text-align: center;
-	color: #909399;
-	font-size: 14px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	margin: 18px;
+	padding: 42px 16px;
+	border: 1px dashed var(--line-strong);
+	border-radius: 12px;
 }
 
-/* 分页区域 */
+.empty-text {
+	font-size: 13px;
+	letter-spacing: 0.04em;
+	color: var(--ink-2);
+}
+
+.empty-caption {
+	font-size: 9px;
+	letter-spacing: 0.24em;
+	color: var(--muted);
+}
+
+/* ========== 分页区域 ========== */
 .pagination-area {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 16px 20px;
-	background: #ffffff;
-	border-radius: 0 0 8px 8px;
-	border-top: 1px solid #ebeef5;
-	margin-bottom: 16px;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 14px 18px;
+	background: var(--surface);
+	border: 1px solid var(--line);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow-soft);
 }
 
 .pagination-info {
-	font-size: 14px;
-	color: #606266;
+	font-family: var(--font-display);
+	font-size: 12.5px;
+	letter-spacing: 0.04em;
+	color: var(--muted);
+	font-variant-numeric: tabular-nums;
 }
 
 .pagination-controls {
 	display: flex;
 	align-items: center;
-	gap: 12px;
+	flex-wrap: wrap;
+	gap: 10px;
 }
 
 .page-info {
-	font-size: 14px;
-	color: #606266;
+	padding: 0 4px;
+	font-family: var(--font-display);
+	font-size: 13px;
+	letter-spacing: 0.04em;
+	color: var(--ink);
+	font-variant-numeric: tabular-nums;
 }
 
 .page-size-selector {
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	font-size: 14px;
-	color: #606266;
+	font-size: 11.5px;
+	letter-spacing: 0.04em;
+	color: var(--muted);
 }
 
 .page-size-select {
-	height: 28px;
-	border: 1px solid #dcdfe6;
-	border-radius: 4px;
-	padding: 0 4px;
-	font-size: 14px;
+	height: 30px;
+	padding: 0 6px;
+	box-sizing: border-box;
+	font-size: 12px;
+	color: var(--ink);
+	background: var(--surface-raised);
+	border: 1px solid var(--line);
+	border-radius: 8px;
 	outline: none;
+	transition: border-color 0.18s ease;
 }
 
-/* 弹窗样式 */
+.page-size-select:focus { border-color: var(--accent); }
+
+/* ========== 弹窗 ========== */
 .modal-mask {
 	position: fixed;
 	top: 0;
 	left: 0;
 	right: 0;
 	bottom: 0;
-	background: rgba(0, 0, 0, 0.45);
+	padding: 20px;
+	background: rgba(23, 35, 59, 0.42);
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -946,48 +1097,56 @@ onMounted(() => {
 }
 
 .modal-content {
-	background: #ffffff;
-	border-radius: 8px;
-	width: 480px;
-	max-height: 80vh;
+	width: 460px;
+	max-width: 100%;
+	max-height: 82vh;
 	overflow-y: auto;
-	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+	background: var(--surface);
+	border: 1px solid var(--line-strong);
+	border-radius: var(--radius-lg);
+	box-shadow: 0 24px 60px -30px rgba(23, 35, 59, 0.6);
+	animation: dialogIn 0.18s ease both;
+}
+
+@keyframes dialogIn {
+	from { opacity: 0; transform: translateY(8px); }
+	to { opacity: 1; transform: translateY(0); }
 }
 
 .modal-header {
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
-	padding: 16px 20px;
-	border-bottom: 1px solid #ebeef5;
+	padding: 22px 24px 16px;
+	border-bottom: 1px solid var(--line);
 }
 
 .modal-title {
-	font-size: 18px;
+	font-family: var(--font-display);
+	font-size: 19px;
 	font-weight: 600;
-	color: #303133;
+	letter-spacing: 0.03em;
+	color: var(--ink);
 }
 
 .modal-close {
-	font-size: 24px;
-	cursor: pointer;
-	color: #909399;
+	font-size: 20px;
 	line-height: 1;
-}
-.modal-close:hover {
-	color: #409eff;
+	color: var(--muted);
+	cursor: pointer;
+	transition: color 0.16s ease;
 }
 
-.modal-body {
-	padding: 20px;
-}
+.modal-close:hover { color: var(--accent-ink); }
+
+.modal-body { padding: 20px 24px 6px; }
 
 .modal-footer {
 	display: flex;
 	justify-content: flex-end;
 	gap: 10px;
-	padding: 12px 20px;
-	border-top: 1px solid #ebeef5;
+	padding: 14px 24px 20px;
+	border-top: 1px solid var(--line);
 }
 
 .form-item {
@@ -997,38 +1156,113 @@ onMounted(() => {
 }
 
 .form-label {
-	font-size: 14px;
-	color: #606266;
-	width: 70px;
-	text-align: right;
+	width: 72px;
 	margin-right: 12px;
 	flex-shrink: 0;
+	font-size: 11px;
+	letter-spacing: 0.1em;
+	color: var(--muted);
 }
 
 .form-input {
 	flex: 1;
-	height: 32px;
-	border: 1px solid #dcdfe6;
-	border-radius: 4px;
-	padding: 0 10px;
-	font-size: 14px;
+	height: 38px;
+	padding: 0 12px;
+	box-sizing: border-box;
+	font-size: 13px;
+	color: var(--ink);
+	background: var(--surface-raised);
+	border: 1px solid var(--line);
+	border-radius: 10px;
 	outline: none;
+	transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
+
 .form-input:focus {
-	border-color: #409eff;
+	border-color: var(--accent);
+	box-shadow: 0 0 0 3px rgba(180, 83, 42, 0.1);
 }
 
 .form-radio-group {
 	display: flex;
-	gap: 16px;
+	flex-wrap: wrap;
+	gap: 8px 18px;
 }
 
 .radio-label {
 	display: flex;
 	align-items: center;
-	gap: 4px;
-	font-size: 14px;
-	color: #606266;
+	gap: 6px;
+	font-size: 12.5px;
+	color: var(--ink-2);
 	cursor: pointer;
+}
+
+.radio-label input {
+	accent-color: var(--accent);
+}
+
+/* ========== 响应式 ========== */
+@media (max-width: 768px) {
+	.user-management {
+		padding: 16px 14px 32px;
+		gap: 12px;
+	}
+
+	.page-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 14px;
+		padding-bottom: 14px;
+	}
+
+	.page-title-sm { font-size: 20px; }
+
+	.btn-add { width: 100%; }
+
+	.search-row {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 10px;
+	}
+
+	.search-item { gap: 10px; }
+	.label { width: 72px; }
+
+	.input {
+		width: auto;
+		flex: 1;
+	}
+
+	.search-actions {
+		width: 100%;
+		margin-left: 0;
+	}
+
+	.search-actions .btn { flex: 1; }
+
+	.table-area { overflow-x: auto; }
+
+	.table-header,
+	.table-row { min-width: 1100px; }
+
+	.table-cell { padding: 12px 14px; }
+
+	.pagination-area {
+		flex-direction: column;
+		align-items: stretch;
+		padding: 12px;
+	}
+
+	.pagination-controls { justify-content: space-between; }
+
+	.modal-content { width: 100%; }
+
+	.form-item { align-items: flex-start; }
+
+	.form-label {
+		width: 64px;
+		padding-top: 10px;
+	}
 }
 </style>

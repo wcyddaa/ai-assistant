@@ -1,225 +1,180 @@
-// store/user.ts
+// store/user.ts - 用户认证与角色管理
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { request } from '@/api/request'
+import { sendHeartbeat, recordLogin } from '@/api/data'
+import { getStudentClasses } from '@/api/class'
 
-// 定义用户信息的 TypeScript 接口
-interface UserInfo {
-  id: string
+/** 心跳定时器ID */
+let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+/** 上次拉取学生教学班的时间 */
+let lastClassFetch = 0
+
+/** 后端返回的用户信息 */
+export interface UserInfo {
+  userId: number
   username: string
-  phone?: string
-  role: 'admin' | 'teacher' | 'student'
-  avatar?: string
+  name: string
+  number: string
+  roleId: number
+  roleName: string
 }
 
-// 定义登录请求参数接口
-interface LoginParams {
-  username: string
-  password: string
+/** 后端返回的登录响应 */
+interface TokenResponse {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+  userInfo: UserInfo
 }
 
-// 定义登录响应接口（服务器返回的数据）
-interface LoginResponse {
-  code: number
-  data: {
-    token: string
-    userInfo: UserInfo
-  }
-  message: string
+/** 前端角色标识 */
+export type RoleType = 'admin' | 'teacher' | 'student'
+
+/** 角色ID → 前端角色标识映射 */
+const ROLE_ID_MAP: Record<number, RoleType> = {
+  1: 'admin',
+  2: 'teacher',
+  3: 'student'
 }
 
-// 定义注册请求参数接口
-interface RegisterParams {
-  username: string
-  phone: string
-  password: string
-  role: 'student' | 'teacher'
-  code: string
+/** 前端角色标识 → 角色ID映射 */
+const ROLE_TYPE_MAP: Record<string, number> = {
+  admin: 1,
+  teacher: 2,
+  student: 3
 }
 
 export const useUserStore = defineStore('user', () => {
-  // ========== State（状态）==========
-  // 用户令牌
   const token = ref<string>('')
-  // 用户信息
+  const refreshToken = ref<string>('')
   const userInfo = ref<UserInfo | null>(null)
+  /** 学生所属教学班ID（用于按班统计在线/登录） */
+  const classIds = ref<number[]>([])
 
-  // ========== Getters（计算属性）==========
-  // 是否已登录
   const isLoggedIn = computed(() => !!token.value)
-  
-  // 用户角色
-  const userRole = computed(() => userInfo.value?.role || null)
-  
-  // 用户名
+  const userRole = computed<RoleType | null>(() => {
+    if (!userInfo.value) return null
+    return ROLE_ID_MAP[userInfo.value.roleId] || null
+  })
   const userName = computed(() => userInfo.value?.username || '')
-  
-  // 用户头像
-  const userAvatar = computed(() => userInfo.value?.avatar || '')
+  /** 优先显示姓名，姓名不存在时使用账户名 */
+  const displayName = computed(() => userInfo.value?.name || userInfo.value?.username || '')
 
-  // ========== Actions（方法）==========
-  
   /**
-   * 用户登录
-   * @param params - 登录参数（用户名、密码）
-   * @returns 返回用户信息
+   * 真实登录：调用 xs-auth 服务的 /auth/login 接口
    */
-  const login = async (params: LoginParams): Promise<UserInfo> => {
+  async function login(username: string, password: string, role: RoleType): Promise<UserInfo> {
+    const type = ROLE_TYPE_MAP[role]
+
+    const res = await request<TokenResponse>({
+      url: '/auth/login',
+      method: 'POST',
+      data: { username, password, type }
+    })
+
+    // 存储 token 和用户信息
+    token.value = res.accessToken
+    refreshToken.value = res.refreshToken
+    userInfo.value = res.userInfo
+
+    uni.setStorageSync('token', res.accessToken)
+    uni.setStorageSync('refreshToken', res.refreshToken)
+    uni.setStorageSync('userInfo', res.userInfo)
+
+    // 记录今日登录（仅学生计入登录人数），同时带上学号所属教学班
+    const name = res.userInfo.name || res.userInfo.username
+    if (res.userInfo.roleId === 3) {
+      await refreshClassIds()
+    }
+    recordLogin(res.userInfo.userId, name, res.userInfo.roleId, classIds.value).catch(() => { /* 忽略错误 */ })
+
+    return res.userInfo
+  }
+
+  /** 拉取学生所属教学班（用于在线与登录的教学班维度统计） */
+  async function refreshClassIds(force = false): Promise<void> {
+    const user = userInfo.value
+    if (!user || user.roleId !== 3) {
+      classIds.value = []
+      return
+    }
+    const now = Date.now()
+    if (!force && lastClassFetch > 0 && now - lastClassFetch < 60000) return
     try {
-      // 发送登录请求到服务器
-      // const res = await uni.request({
-      //   url: 'https://your-api.com/login',  // 替换成你的实际接口地址
-      //   method: 'POST',
-      //   data: {
-      //     username: params.username,
-      //     password: params.password
-      //   }
-      // }) as unknown as LoginResponse
-      const res = {
-            code: 200,
-            data: {
-              token: 'mock_token_' + Date.now(),
-              userInfo: {
-                id: 'admin_001',
-                username: params.username,
-                phone: '13800138000',
-                role: 'admin',
-                avatar: ''
-              }
-            },
-            message: '登录成功'
-          } as unknown as LoginResponse
-      // 检查响应状态
-      if (res.code !== 200) {
-        throw new Error(res.message || '登录失败')
-      }
-      
-      // 解构服务器返回的数据
-      const { token: newToken, userInfo: newUserInfo } = res.data
-      
-      // 保存到 state（内存）
-      token.value = newToken
-      userInfo.value = newUserInfo
-      
-      // 持久化到本地存储
-      uni.setStorageSync('token', newToken)
-      uni.setStorageSync('userInfo', newUserInfo)
-      
-      // 返回用户信息
-      return newUserInfo
-      
-    } catch (error) {
-      console.error('登录请求失败:', error)
-      throw new Error('登录失败，请检查网络或账号密码')
+      const classes = await getStudentClasses(user.userId)
+      classIds.value = (classes || []).map((c) => c.id)
+      lastClassFetch = Date.now()
+    } catch {
+      // 忽略错误，保持已有班级
     }
   }
-  
-  /**
-   * 用户注册
-   * @param params - 注册参数
-   */
-  const register = async (params: RegisterParams): Promise<void> => {
-    try {
-      const res = await uni.request({
-        url: 'https://your-api.com/register',  // 替换成你的实际接口地址
-        method: 'POST',
-        data: params
-      }) as unknown as LoginResponse
-      
-      if (res.code !== 200) {
-        throw new Error(res.message || '注册失败')
-      }
-      
-      uni.showToast({ title: '注册成功，请登录', icon: 'success' })
-      
-    } catch (error) {
-      console.error('注册请求失败:', error)
-      throw new Error('注册失败，请稍后重试')
-    }
-  }
-  
-  /**
-   * 发送验证码
-   * @param phone - 手机号
-   */
-  const sendCode = async (phone: string): Promise<void> => {
-    try {
-      const res = await uni.request({
-        url: 'https://your-api.com/send-code',  // 替换成你的实际接口地址
-        method: 'POST',
-        data: { phone }
-      }) as unknown as { code: number; message: string }
-      
-      if (res.code !== 200) {
-        throw new Error(res.message || '发送失败')
-      }
-      
-      uni.showToast({ title: '验证码已发送', icon: 'success' })
-      
-    } catch (error) {
-      console.error('发送验证码失败:', error)
-      throw new Error('发送失败，请稍后重试')
-    }
-  }
-  
-  /**
-   * 初始化用户状态（从本地存储恢复登录状态）
-   * 在 App.vue 的 onLaunch 中调用
-   */
-  const initUser = (): void => {
+
+  function initUser() {
     const storedToken = uni.getStorageSync('token')
+    const storedRefreshToken = uni.getStorageSync('refreshToken')
     const storedUserInfo = uni.getStorageSync('userInfo')
-    
     if (storedToken && storedUserInfo) {
       token.value = storedToken
+      refreshToken.value = storedRefreshToken || ''
       userInfo.value = storedUserInfo
+      // 已登录状态，启动心跳
+      startHeartbeat()
     }
   }
-  
-  /**
-   * 更新用户信息
-   * @param newInfo - 要更新的用户信息
-   */
-  const updateUserInfo = (newInfo: Partial<UserInfo>): void => {
-    if (userInfo.value) {
-      userInfo.value = { ...userInfo.value, ...newInfo }
-      uni.setStorageSync('userInfo', userInfo.value)
+
+  function logout() {
+    // 停止心跳
+    stopHeartbeat()
+
+    // 调用服务端登出接口（不阻塞本地清理）
+    const storedToken = uni.getStorageSync('token')
+    if (storedToken) {
+      request({
+        url: '/auth/logout',
+        method: 'POST'
+      }).catch(() => { /* 忽略登出接口错误 */ })
     }
-  }
-  
-  /**
-   * 退出登录
-   */
-  const logout = (): void => {
-    // 清空 state
+
     token.value = ''
+    refreshToken.value = ''
     userInfo.value = null
-    
-    // 清除本地存储
+    classIds.value = []
+    lastClassFetch = 0
     uni.removeStorageSync('token')
+    uni.removeStorageSync('refreshToken')
     uni.removeStorageSync('userInfo')
-    
-    // 跳转到登录页
     uni.reLaunch({ url: '/pages/login/index' })
   }
 
-  // ========== 返回所有状态和方法 ==========
-  return {
-    // state
-    token,
-    userInfo,
-    
-    // getters
-    isLoggedIn,
-    userRole,
-    userName,
-    userAvatar,
-    
-    // actions
-    login,
-    register,
-    sendCode,
-    initUser,
-    updateUserInfo,
-    logout
+  /** 启动心跳（30秒间隔） */
+  function startHeartbeat() {
+    if (!userInfo.value) return
+    const userId = userInfo.value.userId
+    const roleId = userInfo.value.roleId
+    const name = userInfo.value.name || userInfo.value.username
+
+    // 立即发送第一次心跳（学生先同步所属教学班）
+    refreshClassIds().finally(() => {
+      sendHeartbeat(userId, name, roleId, classIds.value).catch(() => { /* 忽略错误 */ })
+    })
+
+    // 每30秒发送一次心跳
+    if (heartbeatTimer) clearInterval(heartbeatTimer)
+    heartbeatTimer = setInterval(() => {
+      refreshClassIds().finally(() => {
+        sendHeartbeat(userId, name, roleId, classIds.value).catch(() => { /* 忽略错误 */ })
+      })
+    }, 30000)
   }
+
+  /** 停止心跳 */
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer)
+      heartbeatTimer = null
+    }
+  }
+
+  return { token, refreshToken, userInfo, classIds, isLoggedIn, userRole, userName, displayName, login, initUser, logout, startHeartbeat, stopHeartbeat, refreshClassIds }
 })

@@ -45,6 +45,10 @@
       "style": { "navigationStyle": "custom" }
     },
     {
+      "path": "pages/admin/storage/index",
+      "style": { "navigationStyle": "custom" }
+    },
+    {
       "path": "pages/teacher/class/index",
       "style": { "navigationStyle": "custom" }
     },

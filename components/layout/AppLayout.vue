@@ -115,7 +115,8 @@ const navItems = computed<NavItem[]>(() => {
       { path: '/pages/admin/class/index', label: '教学班管理' },
       { path: '/pages/admin/course/index', label: '课程管理' },
       { path: '/pages/admin/textbook/index', label: '教材管理' },
-      { path: '/pages/admin/model/index', label: '模型管理' }
+      { path: '/pages/admin/model/index', label: '模型管理' },
+      { path: '/pages/admin/storage/index', label: '存储配置' }
     ]
   }
   if (role === 'teacher') {

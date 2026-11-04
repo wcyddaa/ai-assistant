@@ -13,40 +13,52 @@
       <view class="section">
         <view class="section-divider">
           <text class="divider-index">01</text>
-          <text class="divider-text">华为 AGC 云存储</text>
+          <text class="divider-text">存储接入方式</text>
+        </view>
+
+        <view class="provider-row">
+          <view
+            v-for="item in providers"
+            :key="item.value"
+            class="provider-chip"
+            :class="{ active: form.provider === item.value }"
+            @click="selectProvider(item.value)"
+          >
+            <text class="provider-label">{{ item.label }}</text>
+            <text class="provider-code">{{ item.value }}</text>
+          </view>
         </view>
 
         <view class="storage-card">
-          <view class="field">
-            <text class="field-label">存储类型</text>
-            <view class="field-static">
-              <text class="mono">agc</text>
-              <text class="field-hint">华为 AppGallery Connect 云存储</text>
-            </view>
+          <text v-if="activeMeta?.hint" class="provider-hint">{{ activeMeta.hint }}</text>
+
+          <view v-if="activeMeta?.endpointLabel" class="field">
+            <text class="field-label">{{ activeMeta.endpointLabel }}</text>
+            <input v-model="form.endpoint" class="field-input" placeholder="例如 oss-cn-hangzhou.aliyuncs.com" />
           </view>
 
-          <view class="field">
-            <text class="field-label">存储桶</text>
+          <view v-if="activeMeta?.regionLabel" class="field">
+            <text class="field-label">{{ activeMeta.regionLabel }}</text>
+            <input v-model="form.region" class="field-input" placeholder="例如 cn-east-3 / ap-guangzhou" />
+          </view>
+
+          <view v-if="activeMeta?.bucketLabel" class="field">
+            <text class="field-label">{{ activeMeta.bucketLabel }}</text>
             <input v-model="form.bucket" class="field-input" placeholder="例如 pdf-dwad8" />
           </view>
 
-          <view class="field">
-            <text class="field-label">区域</text>
-            <input v-model="form.region" class="field-input" placeholder="例如 cn-east-3" />
+          <view v-if="activeMeta?.clientIdLabel" class="field">
+            <text class="field-label">{{ activeMeta.clientIdLabel }}</text>
+            <input v-model="form.clientId" class="field-input" placeholder="接入标识" />
           </view>
 
-          <view class="field">
-            <text class="field-label">Client ID</text>
-            <input v-model="form.clientId" class="field-input" placeholder="AGC 客户端 ID" />
-          </view>
-
-          <view class="field">
-            <text class="field-label">Client Secret</text>
+          <view v-if="activeMeta?.secretLabel" class="field">
+            <text class="field-label">{{ activeMeta.secretLabel }}</text>
             <input
               v-model="form.clientSecret"
               class="field-input"
               :password="true"
-              :placeholder="secretConfigured ? '已配置，留空表示不修改' : 'AGC 客户端密钥'"
+              :placeholder="secretConfigured ? '已配置，留空表示不修改' : '接入密钥'"
             />
             <text class="field-hint">
               {{ secretConfigured ? '当前已保存密钥，仅在需要更换时填写' : '尚未配置密钥' }}
@@ -66,8 +78,9 @@
         </view>
 
         <text class="note">
-          说明：教材、课件、作业附件统一由 xs-media 管理，上传时先落本地再同步云端；云端不可用时不影响本地读写。
-          凭据只在本服务启动时经内部接口读取，前端接口始终返回脱敏结果。
+          说明：同一时间只有一个接入方式生效；教材、课件、作业附件统一由 xs-media 管理，上传先落本地再同步云端，
+          云端不可用不影响本地读写。切换接入方式后，业务服务最多 30 秒自动生效，无需重启。
+          凭据只保存在本机数据库（AES-GCM 密文），前端接口始终返回脱敏结果。
         </text>
       </view>
     </view>
@@ -77,20 +90,47 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { getStorageConfig, saveStorageConfig, testStorageConfig, type StorageConfigItem } from '@/api/storage'
+import {
+  getStorageConfig,
+  getStorageProviders,
+  saveStorageConfig,
+  testStorageConfig,
+  type StorageConfigItem,
+  type StorageProviderMeta
+} from '@/api/storage'
 
 const form = reactive<StorageConfigItem>({
   id: null,
   provider: 'agc',
-  bucket: 'pdf-dwad8',
-  region: 'cn-east-3',
+  endpoint: '',
+  bucket: '',
+  region: '',
   clientId: '',
   clientSecret: ''
 })
 
+const providers = ref<StorageProviderMeta[]>([
+  { value: 'agc', label: '华为 AGC 云存储', regionLabel: '区域 Region', bucketLabel: '存储桶', clientIdLabel: 'Client ID', secretLabel: 'Client Secret' },
+  { value: 'oss', label: '阿里云 OSS', endpointLabel: 'Endpoint', bucketLabel: 'Bucket', clientIdLabel: 'AccessKeyId', secretLabel: 'AccessKeySecret' },
+  { value: 'cos', label: '腾讯云 COS', regionLabel: '地域 Region', bucketLabel: '存储桶', clientIdLabel: 'SecretId', secretLabel: 'SecretKey' },
+  { value: 'local', label: '仅本地磁盘', hint: '文件只保存在本机 XingShuEnv\\uploads，不做云端同步' }
+])
+
 const secretConfigured = ref(false)
 const saving = ref(false)
 const testing = ref(false)
+
+const activeMeta = computed(() => providers.value.find((item) => item.value === form.provider))
+
+function selectProvider(value: string) {
+  if (form.provider === value) return
+  form.provider = value
+  // 不同 provider 的凭据不可混用，切换时清空密钥与测试结果
+  form.clientSecret = ''
+  form.status = undefined
+  form.testMessage = undefined
+  secretConfigured.value = false
+}
 
 const statusClass = computed(() => {
   if (form.status === 'success') return 'success'
@@ -106,11 +146,17 @@ const statusText = computed(() => {
 
 async function load() {
   try {
+    providers.value = await getStorageProviders()
+  } catch (e) {
+    // 接口不可用时使用内置列表，保证页面可操作
+  }
+  try {
     const list = await getStorageConfig()
     const current = list.find((item) => item.enabled === 1) || list[0]
     if (current) {
       form.id = current.id
       form.provider = current.provider || 'agc'
+      form.endpoint = current.endpoint || ''
       form.bucket = current.bucket || ''
       form.region = current.region || ''
       form.clientId = current.clientId || ''
@@ -167,6 +213,53 @@ onMounted(load)
 </script>
 
 <style scoped>
+.provider-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.provider-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 16px;
+  border: 1px solid #dfe3ec;
+  border-radius: 10px;
+  background: #fbfcfe;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.provider-chip.active {
+  border-color: #3b6ef6;
+  background: #f2f6ff;
+  box-shadow: 0 4px 14px rgba(59, 110, 246, 0.12);
+}
+
+.provider-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2d3a56;
+}
+
+.provider-code {
+  font-family: 'JetBrains Mono', Consolas, monospace;
+  font-size: 11px;
+  color: #8a93a6;
+}
+
+.provider-hint {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #4a5568;
+  background: #f6f8fd;
+  border-left: 3px solid #3b6ef6;
+  border-radius: 6px;
+  padding: 10px 14px;
+}
+
 .storage-card {
   background: #ffffff;
   border: 1px solid #e6e9f0;

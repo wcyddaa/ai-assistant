@@ -9,6 +9,8 @@ const BASE_URL = 'http://localhost:8086'
 export interface StorageConfigItem {
   id: number | null
   provider: string
+  /** OSS 等需要独立接入地址；AGC/COS 可留空 */
+  endpoint?: string
   bucket?: string
   region?: string
   clientId?: string
@@ -20,6 +22,27 @@ export interface StorageConfigItem {
   testMessage?: string
   lastTestTime?: string
   enabled?: number
+}
+
+/** 支持的存储类型（后端下发字段标签，前端按需渲染） */
+export interface StorageProviderMeta {
+  value: string
+  label: string
+  endpointLabel?: string | null
+  regionLabel?: string | null
+  bucketLabel?: string | null
+  clientIdLabel?: string | null
+  secretLabel?: string | null
+  hint?: string
+}
+
+/** 获取支持的存储类型 */
+export function getStorageProviders(): Promise<StorageProviderMeta[]> {
+  return request<StorageProviderMeta[]>({
+    url: '/api/storage-config/providers',
+    method: 'GET',
+    baseURL: BASE_URL
+  })
 }
 
 /** 获取存储配置（密钥已脱敏） */

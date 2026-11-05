@@ -186,6 +186,13 @@ textarea::placeholder {
   margin: auto 0 !important;
 }
 
+/* uni-app H5 的 picker 弹层固定 z-index:999，低于上面统一设置的弹窗层级(1000)，
+   表现就是弹窗里的下拉 picker 点击后“没有下拉/滚轮”、看起来按钮点不动。
+   这里统一把 picker 弹层提到弹窗之上。 */
+.uni-picker-container {
+  z-index: 1200 !important;
+}
+
 /* 弹窗右上角关闭按钮（各页未自带 × 时统一补一个，避免与已自带 .modal-close 的页面冲突） */
 .dialog-x {
   position: absolute;

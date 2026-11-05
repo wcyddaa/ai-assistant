@@ -133,7 +133,7 @@
             <text class="dialog-close" @click="closeDialog">×</text>
           </view>
 
-          <scroll-view scroll-y class="dialog-body">
+          <view class="dialog-body">
             <view class="form-grid">
               <view class="form-row">
                 <text class="form-label required">智能体模板</text>
@@ -215,11 +215,11 @@
                 </view>
               </view>
             </view>
-          </scroll-view>
+          </view>
 
           <view class="dialog-foot">
             <button class="btn-ghost" @click="closeDialog">取消</button>
-            <button class="btn-primary" :disabled="saving || modelOptions.length === 0" @click="handleSave">
+            <button class="btn-primary" :disabled="saving" @click="handleSave">
               {{ saving ? '保存中...' : '保存' }}
             </button>
           </view>
@@ -1268,19 +1268,13 @@ onShow(() => {
   background: var(--paper-deep);
 }
 
-/* scroll-view 作为 flex 子项默认 min-height:auto，会按内容撑高导致超出弹窗被裁切；
-   min-height:0 才能让它在弹窗高度内收缩并出现内部滚动条 */
+/* 弹窗主体自身滚动：不用 uni scroll-view，避免其内部 fixed 定位的 picker 弹层被裁切/错位 */
 .dialog-body {
   flex: 1 1 auto;
   min-height: 0;
   padding: 18px 24px;
   box-sizing: border-box;
-  overflow: hidden;
-}
-
-.dialog-body :deep(.uni-scroll-view) {
-  height: 100%;
-  max-height: 100%;
+  overflow-y: auto;
 }
 
 .form-grid {

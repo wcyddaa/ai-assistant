@@ -30,7 +30,7 @@
 import { ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import * as mock from '@/api/services/mock'
+import { gradeHomework } from '@/api/homework'
 
 const homeworkId = ref(0)
 const studentName = ref('')
@@ -46,9 +46,13 @@ onLoad((options: Record<string, string | undefined>) => {
 })
 
 async function handleSubmit() {
-  await mock.gradeHomework(homeworkId.value, Number(score.value), comment.value)
-  uni.showToast({ title: '批改成功', icon: 'success' })
-  setTimeout(() => uni.navigateBack(), 800)
+  try {
+    await gradeHomework(homeworkId.value, Number(score.value), comment.value)
+    uni.showToast({ title: '批改成功', icon: 'success' })
+    setTimeout(() => uni.navigateBack(), 800)
+  } catch {
+    uni.showToast({ title: '批改失败，请重试', icon: 'none' })
+  }
 }
 </script>
 

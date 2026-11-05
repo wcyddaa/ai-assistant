@@ -53,6 +53,10 @@
       "style": { "navigationStyle": "custom" }
     },
     {
+      "path": "pages/teacher/class/detail",
+      "style": { "navigationStyle": "custom" }
+    },
+    {
       "path": "pages/teacher/course/index",
       "style": { "navigationStyle": "custom" }
     },

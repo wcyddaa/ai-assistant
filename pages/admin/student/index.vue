@@ -236,6 +236,10 @@ async function submitForm() {
     uni.showToast({ title: '请输入用户名', icon: 'none' })
     return
   }
+  if (!isEdit.value && !form.value.password?.trim()) {
+    uni.showToast({ title: '请输入初始密码', icon: 'none' })
+    return
+  }
   try {
     if (isEdit.value) {
       await updateUser(form.value)

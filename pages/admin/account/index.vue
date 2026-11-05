@@ -221,8 +221,10 @@ const formVisible = ref(false)
 const importVisible = ref(false)
 const isEdit = ref(false)
 const form = ref<Partial<User>>({})
-const formTypeIndex = ref(0)
-const formTypeLabel = computed(() => typeOptions.slice(1)[formTypeIndex.value]?.label || '管理员')
+const formTypeIndex = ref(-1)
+const formTypeLabel = computed(() =>
+  formTypeIndex.value >= 0 ? (typeOptions.slice(1)[formTypeIndex.value]?.label || '请选择身份') : '请选择身份'
+)
 const importText = ref('')
 
 // 行政班选择
@@ -250,8 +252,8 @@ function handleFormClassChange(e: { detail: { value: number } }) {
 }
 
 function handleFormTypeChange(e: { detail: { value: number } }) {
-  formTypeIndex.value = e.detail.value
-  form.value.type = e.detail.value + 1
+  formTypeIndex.value = Number(e.detail.value)
+  form.value.type = Number(e.detail.value) + 1
 }
 
 function formatTime(time: string): string {
@@ -311,7 +313,8 @@ function handleJump() {
 function handleAdd() {
   isEdit.value = false
   form.value = { username: '', name: '', number: '', password: '' }
-  formTypeIndex.value = 0
+  formTypeIndex.value = -1
+  formClassIndex.value = -1
   formVisible.value = true
 }
 
@@ -331,12 +334,22 @@ async function submitForm() {
     uni.showToast({ title: '请输入用户名', icon: 'none' })
     return
   }
+  if (!isEdit.value) {
+    if (formTypeIndex.value < 0) {
+      uni.showToast({ title: '请选择身份', icon: 'none' })
+      return
+    }
+    if (!form.value.password?.trim()) {
+      uni.showToast({ title: '请输入初始密码', icon: 'none' })
+      return
+    }
+  }
   try {
     if (isEdit.value) {
       await updateUser(form.value)
       uni.showToast({ title: '更新成功', icon: 'success' })
     } else {
-      const userType = formTypeIndex.value + 1
+      const userType = Number(formTypeIndex.value) + 1
       await addUser({ ...form.value, type: userType, status: 1 })
       uni.showToast({ title: '添加成功', icon: 'success' })
     }

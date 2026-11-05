@@ -178,8 +178,12 @@ export function gradeHomework(id: number, score: number | null, comment: string)
   })
 }
 
-/** AI生成作业内容（调用FastAPI作业生成接口），返回 { content, markdown } */
-export function generateHomeworkAI(message: string, textbookId?: string | null, classId?: number | null): Promise<{ content: string; markdown: string }> {
+/** AI生成作业内容（调用FastAPI作业生成接口），返回 { content, markdown, warning } */
+export function generateHomeworkAI(
+  message: string,
+  textbookId?: string | null,
+  classId?: number | null
+): Promise<{ content: string; markdown: string; warning?: string }> {
   return new Promise((resolve, reject) => {
     const data: Record<string, unknown> = { message }
     if (textbookId) data.textbook_id = textbookId
@@ -193,11 +197,12 @@ export function generateHomeworkAI(message: string, textbookId?: string | null, 
         'Authorization': uni.getStorageSync('token') || ''
       },
       success: (res) => {
-        const body = res.data as { response?: string; markdown_content?: string; code?: number; message?: string }
+        const body = res.data as { response?: string; markdown_content?: string; warning?: string; code?: number; message?: string }
         if (body.response) {
           resolve({
             content: body.response,
-            markdown: body.markdown_content || body.response
+            markdown: body.markdown_content || body.response,
+            warning: body.warning
           })
         } else {
           uni.showToast({ title: body.message || 'AI生成失败', icon: 'none' })

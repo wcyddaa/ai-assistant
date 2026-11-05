@@ -93,49 +93,6 @@
             <textarea class="form-textarea" v-model="createForm.content" placeholder="请输入章节内容" :maxlength="-1" />
           </view>
           <view class="form-group">
-            <text class="form-label">教材起始页（可选）</text>
-            <view class="page-row">
-              <input class="form-input page-input" v-model="createForm.startPage" type="number" placeholder="起始页" />
-              <text class="page-sep">—</text>
-              <input class="form-input page-input" v-model="createForm.endPage" type="number" placeholder="结束页" />
-            </view>
-          </view>
-          <view class="form-group">
-            <text class="form-label">从教材选取页码生成课件（可选）</text>
-            <view v-if="textbookOptions.length > 0">
-              <picker
-                class="form-picker"
-                :value="createTextbookIndex"
-                :range="textbookOptions"
-                range-key="title"
-                @change="handleCreateTextbookChange"
-              >
-                <view class="picker-display">
-                  <text :class="createTextbookIndex >= 0 ? 'picker-text' : 'picker-placeholder'">
-                    {{ createTextbookIndex >= 0 ? textbookOptions[createTextbookIndex]?.title : '选择教材（可选）' }}
-                  </text>
-                  <text class="picker-arrow">▼</text>
-                </view>
-              </picker>
-              <view v-if="createTextbook">
-                <text class="upload-hint">共 {{ createTextbook.totalPages }} 页</text>
-                <view class="page-row">
-                  <input class="form-input page-input" v-model="createRangeStart" type="number" placeholder="起始页" />
-                  <text class="page-sep">—</text>
-                  <input class="form-input page-input" v-model="createRangeEnd" type="number" placeholder="结束页" />
-                  <button class="btn-upload" @click="addCreateRange">添加</button>
-                </view>
-                <view v-if="createRanges.length > 0" class="upload-file-list">
-                  <view v-for="(r, idx) in createRanges" :key="idx" class="upload-file-item">
-                    <text class="upload-file-name">第 {{ r.startPage }} — {{ r.endPage }} 页</text>
-                    <text class="upload-file-remove" @click="createRanges.splice(idx, 1)">✕</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-            <text v-else class="upload-hint">教材库暂无教材，请联系管理员上传；也可直接上传本地课件</text>
-          </view>
-          <view class="form-group">
             <text class="form-label">上传课件（可选）</text>
             <view class="upload-row">
               <button class="btn-upload" @click="handleCreateFileSelect">选择文件</button>
@@ -147,6 +104,7 @@
                 <text class="upload-file-remove" @click="createForm.uploadFiles.splice(idx, 1)">✕</text>
               </view>
             </view>
+            <text class="upload-hint">课件整份上传，直接归属本章节与课程；学生进入教学班后可查看</text>
           </view>
         </view>
         <view class="modal-footer">
@@ -178,12 +136,6 @@
           <view class="detail-section">
             <text class="detail-label">教材</text>
             <text class="detail-value">由教学班绑定，学生进入教学班后可预览</text>
-          </view>
-          <view class="detail-section">
-            <text class="detail-label">页数</text>
-            <text class="detail-value">
-              {{ detailChapter?.startPage || detailChapter?.endPage ? (detailChapter?.startPage || '?') + ' — ' + (detailChapter?.endPage || '?') : '无' }}
-            </text>
           </view>
           <view class="detail-section">
             <text class="detail-label">课件</text>
@@ -233,49 +185,6 @@
             </picker>
           </view>
           <view class="form-group">
-            <text class="form-label">教材起始页（可选）</text>
-            <view class="page-row">
-              <input class="form-input page-input" v-model="editForm.startPage" type="number" placeholder="起始页" />
-              <text class="page-sep">—</text>
-              <input class="form-input page-input" v-model="editForm.endPage" type="number" placeholder="结束页" />
-            </view>
-          </view>
-          <view class="form-group">
-            <text class="form-label">从教材选取页码生成课件（可选）</text>
-            <view v-if="textbookOptions.length > 0">
-              <picker
-                class="form-picker"
-                :value="editTextbookIndex"
-                :range="textbookOptions"
-                range-key="title"
-                @change="handleEditTextbookChange"
-              >
-                <view class="picker-display">
-                  <text :class="editTextbookIndex >= 0 ? 'picker-text' : 'picker-placeholder'">
-                    {{ editTextbookIndex >= 0 ? textbookOptions[editTextbookIndex]?.title : '选择教材（可选）' }}
-                  </text>
-                  <text class="picker-arrow">▼</text>
-                </view>
-              </picker>
-              <view v-if="editTextbook">
-                <text class="upload-hint">共 {{ editTextbook.totalPages }} 页</text>
-                <view class="page-row">
-                  <input class="form-input page-input" v-model="editRangeStart" type="number" placeholder="起始页" />
-                  <text class="page-sep">—</text>
-                  <input class="form-input page-input" v-model="editRangeEnd" type="number" placeholder="结束页" />
-                  <button class="btn-upload" @click="addEditRange">添加</button>
-                </view>
-                <view v-if="editRanges.length > 0" class="upload-file-list">
-                  <view v-for="(r, idx) in editRanges" :key="idx" class="upload-file-item">
-                    <text class="upload-file-name">第 {{ r.startPage }} — {{ r.endPage }} 页</text>
-                    <text class="upload-file-remove" @click="editRanges.splice(idx, 1)">✕</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-            <text v-else class="upload-hint">教材库暂无教材，请联系管理员上传；也可直接上传本地课件</text>
-          </view>
-          <view class="form-group">
             <text class="form-label">上传课件（可选）</text>
             <view class="upload-row">
               <button class="btn-upload" @click="handleEditFileSelect">选择文件</button>
@@ -304,8 +213,7 @@ import { onShow } from '@dcloudio/uni-app'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useUserStore } from '@/store/user'
 import { getCoursesByCreator, getChapters, addChapters, updateChapter, deleteChapter, type CourseInfo, type ChapterInfo } from '@/api/course'
-import { getCoursewareList, uploadCourseware, deleteCourseware, createCoursewareFromTextbook, type CoursewareInfo } from '@/api/courseware'
-import { getTextbookPage, type TextbookInfo } from '@/api/textbook'
+import { getCoursewareList, uploadCourseware, deleteCourseware, type CoursewareInfo } from '@/api/courseware'
 
 interface ChapterWithMeta extends ChapterInfo {
   courseName: string
@@ -355,50 +263,11 @@ const createForm = ref({
   courseId: '',
   title: '',
   content: '',
-  startPage: '',
-  endPage: '',
   uploadFiles: [] as File[]
 })
 
-// 从教材选页生成课件（创建）
-const textbookOptions = ref<TextbookInfo[]>([])
-const createTextbookIndex = ref(-1)
-const createRangeStart = ref('')
-const createRangeEnd = ref('')
-const createRanges = ref<Array<{ startPage: number; endPage: number }>>([])
-
-const createTextbook = computed(() => {
-  const idx = createTextbookIndex.value
-  return idx >= 0 && idx < textbookOptions.value.length ? textbookOptions.value[idx] : null
-})
-
-function handleCreateTextbookChange(e: { detail: { value: number } }) {
-  createTextbookIndex.value = e.detail.value
-}
-
-function addCreateRange() {
-  const start = Number(createRangeStart.value)
-  const end = Number(createRangeEnd.value)
-  if (!start || !end || start < 1 || end < start) {
-    uni.showToast({ title: '请输入有效的页码范围', icon: 'none' })
-    return
-  }
-  const total = createTextbook.value?.totalPages || 0
-  if (total && end > total) {
-    uni.showToast({ title: `结束页不能超过 ${total} 页`, icon: 'none' })
-    return
-  }
-  createRanges.value.push({ startPage: start, endPage: end })
-  createRangeStart.value = ''
-  createRangeEnd.value = ''
-}
-
 function openCreate() {
-  createForm.value = { courseId: '', title: '', content: '', startPage: '', endPage: '', uploadFiles: [] }
-  createTextbookIndex.value = -1
-  createRangeStart.value = ''
-  createRangeEnd.value = ''
-  createRanges.value = []
+  createForm.value = { courseId: '', title: '', content: '', uploadFiles: [] }
   courseIdError.value = ''
   createVisible.value = true
 }
@@ -460,8 +329,6 @@ async function handleCreate() {
       description: createForm.value.content.trim(),
       sortOrder: 1
     }
-    if (createForm.value.startPage) chapterData.startPage = Number(createForm.value.startPage)
-    if (createForm.value.endPage) chapterData.endPage = Number(createForm.value.endPage)
 
     await addChapters(courseId, [chapterData])
 
@@ -478,25 +345,6 @@ async function handleCreate() {
       const userName = userStore.userInfo?.name || userStore.userInfo?.username || ''
       for (const file of createForm.value.uploadFiles) {
         await uploadCourseware(file, courseId, course.name, userId, userName, undefined, newChapterId)
-      }
-    }
-
-    // 从教材 PDF 截取页范围生成课件
-    if (createRanges.value.length > 0 && createTextbook.value) {
-      const userId = userStore.userInfo?.userId || 0
-      const userName = userStore.userInfo?.name || userStore.userInfo?.username || ''
-      for (const range of createRanges.value) {
-        await createCoursewareFromTextbook({
-          textbookId: createTextbook.value.id,
-          startPage: range.startPage,
-          endPage: range.endPage,
-          title: `${createTextbook.value.title || '教材'} · 第${range.startPage}-${range.endPage}页`,
-          courseId,
-          courseName: course.name,
-          chapterId: newChapterId,
-          createrId: userId,
-          createrName: userName
-        })
       }
     }
 
@@ -537,44 +385,10 @@ const editCourseIndex = ref(-1)
 const editForm = ref({
   title: '',
   description: '',
-  startPage: '',
-  endPage: '',
   uploadFiles: [] as File[]
 })
 
 const coursePickerRange = computed(() => teacherCourses.value.map(c => c.name))
-
-// 从教材选页生成课件（编辑）
-const editTextbookIndex = ref(-1)
-const editRangeStart = ref('')
-const editRangeEnd = ref('')
-const editRanges = ref<Array<{ startPage: number; endPage: number }>>([])
-
-const editTextbook = computed(() => {
-  const idx = editTextbookIndex.value
-  return idx >= 0 && idx < textbookOptions.value.length ? textbookOptions.value[idx] : null
-})
-
-function handleEditTextbookChange(e: { detail: { value: number } }) {
-  editTextbookIndex.value = e.detail.value
-}
-
-function addEditRange() {
-  const start = Number(editRangeStart.value)
-  const end = Number(editRangeEnd.value)
-  if (!start || !end || start < 1 || end < start) {
-    uni.showToast({ title: '请输入有效的页码范围', icon: 'none' })
-    return
-  }
-  const total = editTextbook.value?.totalPages || 0
-  if (total && end > total) {
-    uni.showToast({ title: `结束页不能超过 ${total} 页`, icon: 'none' })
-    return
-  }
-  editRanges.value.push({ startPage: start, endPage: end })
-  editRangeStart.value = ''
-  editRangeEnd.value = ''
-}
 
 function openEdit(ch: ChapterWithMeta) {
   editChapterId.value = ch.id
@@ -582,15 +396,9 @@ function openEdit(ch: ChapterWithMeta) {
   editForm.value = {
     title: ch.title,
     description: ch.description || '',
-    startPage: ch.startPage != null ? String(ch.startPage) : '',
-    endPage: ch.endPage != null ? String(ch.endPage) : '',
     uploadFiles: []
   }
   editCourseIndex.value = teacherCourses.value.findIndex(c => c.id === ch.courseId)
-  editRanges.value = []
-  editRangeStart.value = ''
-  editRangeEnd.value = ''
-  editTextbookIndex.value = -1
   editVisible.value = true
 }
 
@@ -643,8 +451,6 @@ async function handleEditSubmit() {
       title: editForm.value.title.trim(),
       description: editForm.value.description.trim()
     }
-    if (editForm.value.startPage) updateData.startPage = Number(editForm.value.startPage)
-    if (editForm.value.endPage) updateData.endPage = Number(editForm.value.endPage)
 
     await updateChapter(editCourseId.value, editChapterId.value, updateData)
 
@@ -654,26 +460,6 @@ async function handleEditSubmit() {
       const userName = userStore.userInfo?.name || userStore.userInfo?.username || ''
       for (const file of editForm.value.uploadFiles) {
         await uploadCourseware(file, editCourseId.value, course.name, userId, userName, undefined, editChapterId.value)
-      }
-    }
-
-    // 从教材 PDF 截取页范围生成课件
-    if (editRanges.value.length > 0 && editTextbook.value) {
-      const course = teacherCourses.value[editCourseIndex.value]
-      const userId = userStore.userInfo?.userId || 0
-      const userName = userStore.userInfo?.name || userStore.userInfo?.username || ''
-      for (const range of editRanges.value) {
-        await createCoursewareFromTextbook({
-          textbookId: editTextbook.value.id,
-          startPage: range.startPage,
-          endPage: range.endPage,
-          title: `${editTextbook.value.title || '教材'} · 第${range.startPage}-${range.endPage}页`,
-          courseId: editCourseId.value,
-          courseName: course.name,
-          chapterId: editChapterId.value,
-          createrId: userId,
-          createrName: userName
-        })
       }
     }
 
@@ -720,12 +506,8 @@ async function fetchData() {
 
   loading.value = true
   try {
-    const [coursesRes, tbRes] = await Promise.all([
-      getCoursesByCreator(teacherId),
-      getTextbookPage({ page: 1, size: 100 }).catch(() => ({ list: [] as TextbookInfo[], total: 0, page: 1, size: 100, totalPages: 0 }))
-    ])
+    const coursesRes = await getCoursesByCreator(teacherId)
     teacherCourses.value = coursesRes.list
-    textbookOptions.value = tbRes.list || []
 
     const result: ChapterWithMeta[] = []
     for (const course of coursesRes.list) {

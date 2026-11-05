@@ -33,6 +33,7 @@
             </view>
           </view>
           <view class="card-actions">
+            <text class="action-link strong" @click="goDetail(c)">详情 / 能力图谱</text>
             <text class="action-link" @click="handleStudents(c)">分配学生</text>
             <text class="action-link" @click="handleCourses(c)">绑定课程</text>
             <text class="action-link" @click="handleTextbooks(c)">教材</text>
@@ -221,7 +222,7 @@ import PdfPreview from '@/components/PdfPreview.vue'
 import { useUserStore } from '@/store/user'
 import { getClassesByTeacher, createClass, updateClass, deleteClass, getClassStudents, addClassStudent, removeClassStudent, type ClassInfo, type ClassStudent } from '@/api/class'
 import { getCoursePage, getCoursesByClass, addCourseClass, removeCourseClass, type CourseInfo } from '@/api/course'
-import { getTextbookPage, bindTextbookClass, type TextbookInfo } from '@/api/textbook'
+import { getTextbookPage, bindTextbookClass, unbindTextbookClass, type TextbookInfo } from '@/api/textbook'
 import { getUserByUsername } from '@/api/user'
 
 interface ClassInfoExt extends ClassInfo {
@@ -344,12 +345,11 @@ function previewTextbookItem(tb: TextbookInfo) {
 }
 
 async function unbindTextbook(tb: TextbookInfo) {
+  if (!currentClass.value) return
   try {
-    await bindTextbookClass(tb.id, null, '')
+    await unbindTextbookClass(tb.id, currentClass.value.id)
     uni.showToast({ title: '已解绑', icon: 'success' })
-    if (currentClass.value) {
-      await Promise.all([loadTextbooks(currentClass.value.id), loadTextbookLibrary()])
-    }
+    await Promise.all([loadTextbooks(currentClass.value.id), loadTextbookLibrary()])
   } catch {
     uni.showToast({ title: '解绑失败', icon: 'none' })
   }
@@ -481,6 +481,13 @@ async function handleStudents(c: ClassInfoExt) {
   } catch {
     studentList.value = []
   }
+}
+
+/** 进入教学班详情：能力维度编辑、学生画像、本班教材与课件 */
+function goDetail(c: ClassInfoExt) {
+  uni.navigateTo({
+    url: `/pages/teacher/class/detail?classId=${c.id}&className=${encodeURIComponent(c.name)}`
+  })
 }
 
 function closeStudentDialog() {
@@ -809,6 +816,11 @@ onShow(() => {
   padding-bottom: 1px;
   border-bottom: 1px solid transparent;
   transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.action-link.strong {
+  font-weight: 600;
+  border-bottom-color: currentColor;
 }
 
 .action-link:hover {

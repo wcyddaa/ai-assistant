@@ -42,7 +42,6 @@
                 <text v-if="form.selectedChapterIds[ch.id]" class="check-mark">✓</text>
               </view>
               <text class="checkbox-label">{{ ch.title }}</text>
-              <text v-if="ch.startPage || ch.endPage" class="checkbox-pages">({{ ch.startPage || '?' }}-{{ ch.endPage || '?' }}页)</text>
             </view>
           </view>
         </view>
@@ -52,16 +51,6 @@
           <text class="form-label">课件参考（AI生成时将检索以下课件内容）</text>
           <view class="courseware-tags">
             <text v-for="cw in coursewareList" :key="cw.id" class="courseware-tag">{{ cw.title }}</text>
-          </view>
-        </view>
-
-        <!-- 教材页数指定（用于AI生成答案时参考） -->
-        <view class="form-group">
-          <text class="form-label">指定教材页数（可选，用于AI生成时参考）</text>
-          <view class="page-range-row">
-            <input class="form-input page-input" v-model.number="form.startPage" type="number" placeholder="起始页" @confirm="saveDraft" />
-            <text class="page-separator">—</text>
-            <input class="form-input page-input" v-model.number="form.endPage" type="number" placeholder="结束页" @confirm="saveDraft" />
           </view>
         </view>
 
@@ -77,6 +66,9 @@
           <view class="btn-ai-row">
             <button class="btn-ai" @click="aiGenerate">AI 生成作业内容</button>
             <button class="btn-ai btn-pdf" @click="exportPdf" :disabled="!hasMarkdownAttachment">导出为 PDF</button>
+          </view>
+          <view v-if="aiWarning" class="ai-warning">
+            <text class="ai-warning-text">{{ aiWarning }}</text>
           </view>
         </view>
 
@@ -148,11 +140,12 @@ const form = ref({
   courseId: null as number | null,
   chapterIds: [] as number[],
   selectedChapterIds: {} as Record<number, boolean>,
-  startPage: null as number | null,
-  endPage: null as number | null,
   description: '',
   status: 'draft'
 })
+
+/** 检索未命中时的提示（不阻断生成） */
+const aiWarning = ref('')
 
 const classLabels = computed(() => classList.value.map(c => c.name))
 const classLabel = computed(() => {
@@ -254,8 +247,6 @@ async function saveDraft() {
       classId: form.value.classId || undefined,
       courseId: form.value.courseId || undefined,
       chapterId: selectedChapterIds.length > 0 ? selectedChapterIds[0] : undefined,
-      startPage: form.value.startPage || undefined,
-      endPage: form.value.endPage || undefined,
       description: form.value.description,
       attachments: homeworkAttachments.value.length > 0 ? JSON.stringify(homeworkAttachments.value) : undefined,
       teacherId,
@@ -313,11 +304,6 @@ async function aiGenerate() {
     if (selectedChapterIds.value.length > 0) {
       message += `\n指定章节：${selectedChapterLabels.value.join('、')}`
     }
-    if (form.value.startPage != null || form.value.endPage != null) {
-      const start = form.value.startPage ?? '未指定'
-      const end = form.value.endPage ?? '未指定'
-      message += `\n指定教材页数范围：第 ${start} 页 至 第 ${end} 页`
-    }
     // 课件信息
     if (coursewareList.value.length > 0) {
       message += `\n可用课件：`
@@ -330,10 +316,9 @@ async function aiGenerate() {
     }
 
     const { generateHomeworkAI } = await import('@/api/homework')
-    // 获取当前选中课程的教材ID
-    const selectedCourse = courseList.value.find(c => c.id === form.value.courseId)
-    const textbookId = selectedCourse?.textbookId || null
-    const result = await generateHomeworkAI(message, textbookId, form.value.classId)
+    // 教材一律由教学班绑定：后端按 class_id 取本班教材做检索
+    const result = await generateHomeworkAI(message, null, form.value.classId)
+    aiWarning.value = result.warning || ''
     form.value.description = result.content
     // 将 markdown 加入统一附件列表
     const existingMdIndex = homeworkAttachments.value.findIndex(a => a.name === '作业附件.md')
@@ -343,7 +328,11 @@ async function aiGenerate() {
       homeworkAttachments.value.push({ name: '作业附件.md', type: 'text/markdown', content: result.markdown })
     }
     uni.hideLoading()
-    uni.showToast({ title: 'AI 内容已生成', icon: 'success' })
+    if (result.warning) {
+      uni.showToast({ title: result.warning, icon: 'none', duration: 4000 })
+    } else {
+      uni.showToast({ title: 'AI 内容已生成', icon: 'success' })
+    }
   } catch {
     uni.hideLoading()
     uni.showToast({ title: 'AI 生成失败，请稍后重试', icon: 'none' })
@@ -711,6 +700,20 @@ onLoad(async (options: Record<string, string> | undefined) => {
   display: flex;
   gap: 10px;
   margin-top: 10px;
+}
+
+.ai-warning {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #FDF6E7;
+  border: 1px solid rgba(186, 132, 30, 0.28);
+  border-radius: 10px;
+}
+
+.ai-warning-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8a5b12;
 }
 
 .btn-ai {

@@ -17,6 +17,9 @@ export interface TextbookInfo {
   fileType: string
   fileSize: number
   classId?: number | null
+  /** 多对多：教材可同时绑定多个教学班 */
+  classIds?: number[]
+  classNames?: string[]
   className?: string
   createTime: string
   updateTime: string
@@ -210,6 +213,25 @@ export function bindTextbookClass(id: string, classId: number | null, className?
     url: `/api/textbooks/${id}/class`,
     method: 'PUT',
     data: { classId, className: classId == null ? '' : className || '' },
+    baseURL: DATA_API_BASE
+  })
+}
+
+/** 解除教材与某个教学班的绑定（多对多，其它班级保留） */
+export function unbindTextbookClass(id: string, classId: number): Promise<TextbookInfo> {
+  return request<TextbookInfo>({
+    url: `/api/textbooks/${id}/classes/${classId}`,
+    method: 'DELETE',
+    baseURL: DATA_API_BASE
+  })
+}
+
+/** 修改教材名称 */
+export function updateTextbookTitle(id: string, title: string): Promise<TextbookInfo> {
+  return request<TextbookInfo>({
+    url: `/api/textbooks/${id}/title`,
+    method: 'PUT',
+    data: { title },
     baseURL: DATA_API_BASE
   })
 }

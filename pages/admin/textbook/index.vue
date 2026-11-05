@@ -50,24 +50,28 @@
       <!-- 表格 -->
       <view class="table-wrapper">
         <view class="table-header">
-          <text class="th" style="width:200px">教材ID</text>
+          <text class="th" style="width:250px">教材ID</text>
           <text class="th" style="flex:1">教材名称</text>
+          <text class="th" style="width:120px">所属教学班</text>
           <text class="th" style="width:60px">作者</text>
           <text class="th" style="width:60px">分类</text>
           <text class="th" style="width:60px">类型</text>
           <text class="th" style="width:50px">页数</text>
-          <text class="th" style="width:140px">上传时间</text>
-          <text class="th" style="width:100px">操作</text>
+          <text class="th" style="width:110px">上传时间</text>
+          <text class="th" style="width:170px">操作</text>
         </view>
         <view v-for="t in list" :key="t.id" class="table-row">
-          <text class="td mono-cell" style="width:200px">{{ formatId(t.id) }}</text>
+          <text class="td mono-cell id-cell" style="width:250px" @click="copyId(t.id)">{{ t.id }}</text>
           <text class="td" style="flex:1">{{ t.title }}</text>
+          <text class="td" style="width:120px">{{ t.className || '未绑定' }}</text>
           <text class="td" style="width:60px">{{ t.author || '-' }}</text>
           <text class="td" style="width:60px">{{ t.category || '-' }}</text>
           <text class="td" style="width:60px">{{ t.fileType || '-' }}</text>
           <text class="td" style="width:50px">{{ t.totalPages || 0 }}</text>
-          <text class="td cell-sub" style="width:140px">{{ formatTime(t.createTime) }}</text>
-          <view class="td action-cell" style="width:100px; gap:6px; display:flex">
+          <text class="td cell-sub" style="width:110px">{{ formatTime(t.createTime) }}</text>
+          <view class="td action-cell" style="width:170px; gap:6px; display:flex">
+            <text class="action-link" @click="handleRename(t)">改名称</text>
+            <text class="action-link" @click="handleBind(t)">绑定教学班</text>
             <text class="action-link danger" @click="handleDelete(t.id)">删除</text>
           </view>
         </view>
@@ -121,6 +125,16 @@
           </view>
 
           <view class="form-group">
+            <text class="form-label">所属教学班</text>
+            <picker :range="classOptions" range-key="name" @change="onClassChange">
+              <view class="file-picker">
+                <text v-if="uploadClassId" class="file-name">{{ uploadClassName }}</text>
+                <text v-else class="file-placeholder">请选择教学班（学生按教学班查看教材）</text>
+              </view>
+            </picker>
+          </view>
+
+          <view class="form-group">
             <text class="form-label">教材名称</text>
             <input class="form-input" v-model="uploadTitle" placeholder="请输入教材名称（可选）" @confirm="confirmUpload" />
           </view>
@@ -138,6 +152,28 @@
             <button class="btn-confirm" :disabled="!selectedFile || uploading" @click="confirmUpload">
               {{ uploading ? '上传中...' : '确认上传' }}
             </button>
+          </view>
+        </view>
+      </view>
+
+      <!-- 绑定教学班弹窗（多对多，可多选） -->
+      <view v-if="bindVisible" class="popup-overlay" @click="bindVisible = false">
+        <view class="popup-dialog" @click.stop>
+          <text class="dialog-x" @click="bindVisible = false">×</text>
+          <text class="dialog-title">绑定教学班</text>
+          <text class="bind-subject">教材：{{ bindTarget?.title }}</text>
+          <view class="class-check-list">
+            <view v-for="c in classes" :key="c.id" class="class-check-item" @click="toggleBindClass(c.id)">
+              <view class="check-box" :class="{ checked: bindSelected.includes(c.id) }">
+                <text v-if="bindSelected.includes(c.id)" class="check-mark">✓</text>
+              </view>
+              <text class="class-check-name">{{ c.name }}</text>
+            </view>
+            <text v-if="classes.length === 0" class="bind-empty">暂无可选教学班</text>
+          </view>
+          <view class="dialog-actions">
+            <button class="btn-cancel" @click="bindVisible = false">取消</button>
+            <button class="btn-confirm" @click="saveBind">保存绑定</button>
           </view>
         </view>
       </view>
@@ -184,10 +220,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow, onUnload } from '@dcloudio/uni-app'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import { getTextbookPage, deleteTextbook, uploadTextbook, getTextbookStats, getTextbookProgress, type TextbookInfo, type TextbookStats, type TaskProgress } from '@/api/textbook'
+import {
+  getTextbookPage,
+  deleteTextbook,
+  uploadTextbook,
+  getTextbookStats,
+  getTextbookProgress,
+  bindTextbookClass,
+  unbindTextbookClass,
+  updateTextbookTitle,
+  type TextbookInfo,
+  type TextbookStats,
+  type TaskProgress
+} from '@/api/textbook'
+import { getClassPage, type ClassInfo } from '@/api/class'
 
 interface FileItem {
   path: string
@@ -213,6 +262,12 @@ const selectedFileType = ref('.pdf')
 const uploadTitle = ref('')
 const uploadCategory = ref('')
 const uploadAuthor = ref('')
+const uploadClassId = ref<number | null>(null)
+const uploadClassName = ref('')
+
+/** 教学班列表（教材按教学班绑定，学生按教学班查看） */
+const classes = ref<ClassInfo[]>([])
+const classOptions = computed(() => classes.value)
 
 // 进度条相关
 const progressVisible = ref(false)
@@ -229,10 +284,101 @@ const fileTypes = [
   { label: '全部', value: '' }
 ]
 
-function formatId(id: string): string {
-  if (!id) return '-'
-  if (id.length <= 12) return id
-  return id.substring(0, 8) + '...'
+/** 教材 ID 完整展示，点击复制，便于课程/作业引用 */
+function copyId(id: string) {
+  if (!id) return
+  uni.setClipboardData({
+    data: id,
+    success: () => uni.showToast({ title: '教材ID已复制', icon: 'none' })
+  })
+}
+
+async function loadClasses() {
+  if (classes.value.length > 0) return
+  try {
+    const res = await getClassPage({ pageNum: 1, pageSize: 100 })
+    classes.value = res.list || []
+  } catch { /* 教学班接口不可用时不阻塞上传 */ }
+}
+
+function onClassChange(event: any) {
+  const item = classes.value[Number(event?.detail?.value)]
+  if (!item) return
+  uploadClassId.value = item.id
+  uploadClassName.value = item.name
+}
+
+/** 绑定弹窗：多对多，勾选多个教学班 */
+const bindVisible = ref(false)
+const bindTarget = ref<TextbookInfo | null>(null)
+const bindSelected = ref<number[]>([])
+
+async function handleBind(t: TextbookInfo) {
+  await loadClasses()
+  if (classes.value.length === 0) {
+    uni.showToast({ title: '暂无教学班可绑定', icon: 'none' })
+    return
+  }
+  bindTarget.value = t
+  const current = t.classIds && t.classIds.length > 0 ? t.classIds : (t.classId ? [t.classId] : [])
+  bindSelected.value = [...current]
+  bindVisible.value = true
+}
+
+function toggleBindClass(id: number) {
+  const index = bindSelected.value.indexOf(id)
+  if (index >= 0) {
+    bindSelected.value.splice(index, 1)
+  } else {
+    bindSelected.value.push(id)
+  }
+}
+
+async function saveBind() {
+  const target = bindTarget.value
+  if (!target) return
+  const current = target.classIds && target.classIds.length > 0 ? target.classIds : (target.classId ? [target.classId] : [])
+  const toAdd = bindSelected.value.filter((id) => !current.includes(id))
+  const toRemove = current.filter((id) => !bindSelected.value.includes(id))
+  try {
+    for (const id of toAdd) {
+      const cls = classes.value.find((c) => c.id === id)
+      await bindTextbookClass(target.id, id, cls?.name)
+    }
+    for (const id of toRemove) {
+      await unbindTextbookClass(target.id, id)
+    }
+    uni.showToast({ title: '绑定已保存', icon: 'none' })
+    bindVisible.value = false
+    fetchData()
+  } catch {
+    uni.showToast({ title: '保存绑定失败', icon: 'none' })
+  }
+}
+
+/** 修改教材名称 */
+function handleRename(t: TextbookInfo) {
+  uni.showModal({
+    title: '修改教材名称',
+    editable: true,
+    content: t.title,
+    placeholderText: '请输入新的教材名称',
+    success: async (res) => {
+      if (!res.confirm) return
+      const title = (res.content || '').trim()
+      if (!title) {
+        uni.showToast({ title: '名称不能为空', icon: 'none' })
+        return
+      }
+      try {
+        await updateTextbookTitle(t.id, title)
+        uni.showToast({ title: '名称已更新', icon: 'none' })
+        fetchData()
+      } catch {
+        uni.showToast({ title: '修改名称失败', icon: 'none' })
+      }
+    }
+  })
 }
 
 function formatTime(time: string): string {
@@ -296,6 +442,9 @@ function handleUpload() {
   uploadTitle.value = ''
   uploadCategory.value = ''
   uploadAuthor.value = ''
+  uploadClassId.value = null
+  uploadClassName.value = ''
+  loadClasses()
 }
 
 function closeUpload() {
@@ -339,11 +488,23 @@ function pickFile() {
 
 async function confirmUpload() {
   if (!selectedFile.value) return
+  if (!uploadClassId.value) {
+    uni.showToast({ title: '请先选择所属教学班', icon: 'none' })
+    return
+  }
   uploading.value = true
   try {
     const fileName = selectedFile.value.name
     const title = uploadTitle.value || fileName.replace(/\.[^.]+$/, '')
-    const result = await uploadTextbook(selectedFile.value.path, title, uploadCategory.value, uploadAuthor.value, selectedFile.value.file)
+    const result = await uploadTextbook(
+      selectedFile.value.path,
+      title,
+      uploadCategory.value,
+      uploadAuthor.value,
+      selectedFile.value.file,
+      uploadClassId.value,
+      uploadClassName.value
+    )
     uni.showToast({ title: '上传成功，正在后台解析...', icon: 'success' })
     closeUpload()
     fetchData()
@@ -663,6 +824,17 @@ onShow(() => {
   white-space: nowrap;
 }
 
+/* 教材ID 完整展示，过长时换行而不是截断 */
+.id-cell {
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.4;
+  cursor: pointer;
+  user-select: all;
+}
+
+.id-cell:hover { color: var(--accent-ink); }
+
 .cell-sub {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -847,6 +1019,54 @@ onShow(() => {
 }
 
 .form-group { margin-bottom: 14px; }
+
+.bind-subject {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.class-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.class-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  cursor: pointer;
+}
+
+.check-box {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 5px;
+  background: var(--surface);
+}
+
+.check-box.checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.check-mark { font-size: 11px; color: #F8F3E8; }
+
+.class-check-name { font-size: 13px; color: var(--ink); }
+
+.bind-empty { font-size: 12px; color: var(--muted); padding: 10px 0; }
 
 .form-label {
   display: block;
@@ -1137,7 +1357,7 @@ onShow(() => {
   }
 
   .table-header,
-  .table-row { min-width: 920px; }
+  .table-row { min-width: 1060px; }
 
   .pagination {
     flex-direction: column;

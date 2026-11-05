@@ -28,7 +28,6 @@
         <view class="table-header">
           <text class="th" style="width:60px">ID</text>
           <text class="th" style="flex:1">课程名称</text>
-          <text class="th" style="width:120px">教材</text>
           <text class="th" style="width:120px">负责人</text>
           <text class="th" style="width:70px">状态</text>
           <text class="th" style="width:100px">创建时间</text>
@@ -38,7 +37,6 @@
         <view v-for="c in list" :key="c.id" class="table-row">
           <text class="td" style="width:60px">{{ c.id }}</text>
           <text class="td" style="flex:1">{{ c.name }}</text>
-          <text class="td" style="width:120px">{{ c.textbookTitle || '-' }}</text>
           <text class="td" style="width:120px">{{ getCreaterName(c.createrId) }}</text>
           <view class="td" style="width:70px">
             <text class="status-pill" :class="c.status === 'approved' ? 'pill-success' : c.status === 'pending' ? 'pill-warning' : 'pill-neutral'">
@@ -85,8 +83,6 @@
           <text class="form-title">{{ isEdit ? '编辑课程' : '创建课程' }}</text>
           <input class="form-input" v-model="form.name" placeholder="课程名称" @confirm="submitForm" />
           <input class="form-input" v-model="form.description" placeholder="课程描述" @confirm="submitForm" />
-          <input class="form-input" v-model="form.textbookId" placeholder="教材ID" @blur="handleTextbookIdBlur" @confirm="submitForm" />
-          <input class="form-input" v-model="form.textbookTitle" placeholder="教材名称" @blur="handleTextbookTitleBlur" @confirm="submitForm" />
           <input v-if="isEdit" class="form-input" v-model="form.createrId" type="number" placeholder="负责人ID（可选）" @confirm="submitForm" />
           <view class="form-actions">
             <button class="btn-cancel" @click="closeForm">取消</button>
@@ -107,10 +103,6 @@
           <view class="detail-section">
             <text class="detail-label">课程描述</text>
             <text class="detail-value">{{ detailCourse?.description || '-' }}</text>
-          </view>
-          <view class="detail-section">
-            <text class="detail-label">教材信息</text>
-            <text class="detail-value">{{ detailCourse?.textbookTitle || '-' }} (ID: {{ detailCourse?.textbookId || '-' }})</text>
           </view>
           <view class="detail-section">
             <text class="detail-label">负责人</text>
@@ -155,7 +147,6 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import { getCoursePage, createCourse, updateCourse, deleteCourse, approveCourse, preCheckDeleteCourse, getCourseClasses, addCourseClass, removeCourseClass, type CourseInfo, type CourseClass } from '@/api/course'
 import { getClassPage, type ClassInfo } from '@/api/class'
 import { getUserById } from '@/api/user'
-import { getTextbookById, searchTextbookByTitle } from '@/api/textbook'
 
 const list = ref<CourseInfo[]>([])
 const createrNames = ref<Record<number, string>>({})
@@ -254,7 +245,7 @@ async function handleApprove(id: number) {
 
 function handleAdd() {
   isEdit.value = false
-  form.value = { name: '', description: '', textbookId: '', textbookTitle: '' }
+  form.value = { name: '', description: '' }
   formVisible.value = true
 }
 
@@ -322,43 +313,6 @@ async function handleRemoveClass(classId: number) {
   }
 }
 
-async function handleTextbookIdBlur() {
-  const id = form.value.textbookId?.trim()
-  if (!id) {
-    form.value.textbookTitle = ''
-    return
-  }
-  try {
-    const tb = await getTextbookById(id)
-    form.value.textbookTitle = tb.title
-  } catch {
-    uni.showToast({ title: '教材ID不存在，请重新输入', icon: 'none' })
-    form.value.textbookId = ''
-    form.value.textbookTitle = ''
-  }
-}
-
-async function handleTextbookTitleBlur() {
-  const title = form.value.textbookTitle?.trim()
-  if (!title) {
-    form.value.textbookId = ''
-    return
-  }
-  try {
-    const tb = await searchTextbookByTitle(title)
-    if (tb) {
-      form.value.textbookId = tb.id
-      form.value.textbookTitle = tb.title
-    } else {
-      uni.showToast({ title: '教材名称不存在，请重新输入', icon: 'none' })
-      form.value.textbookId = ''
-      form.value.textbookTitle = ''
-    }
-  } catch {
-    uni.showToast({ title: '查询教材失败', icon: 'none' })
-  }
-}
-
 async function submitForm() {
   if (!form.value.name?.trim()) {
     uni.showToast({ title: '请输入课程名称', icon: 'none' })
@@ -369,17 +323,13 @@ async function submitForm() {
       const updateData: Record<string, unknown> = {}
       if (form.value.name) updateData.name = form.value.name
       if (form.value.description !== undefined) updateData.description = form.value.description
-      if (form.value.textbookId !== undefined) updateData.textbookId = form.value.textbookId
-      if (form.value.textbookTitle !== undefined) updateData.textbookTitle = form.value.textbookTitle
       if (form.value.createrId !== undefined) updateData.createrId = form.value.createrId
       await updateCourse(form.value.id, updateData as Partial<CourseInfo>)
       uni.showToast({ title: '更新成功', icon: 'success' })
     } else {
       await createCourse({
         name: form.value.name,
-        description: form.value.description || '',
-        textbookId: form.value.textbookId || '',
-        textbookTitle: form.value.textbookTitle || ''
+        description: form.value.description || ''
       })
       uni.showToast({ title: '创建成功', icon: 'success' })
     }

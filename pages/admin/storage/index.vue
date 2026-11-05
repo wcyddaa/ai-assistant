@@ -65,9 +65,22 @@
             </text>
           </view>
 
+          <view class="switch-row">
+            <view class="switch-text">
+              <text class="field-label">启用该存储配置</text>
+              <text class="field-hint">
+                启用后业务服务最多 30 秒自动切换；同一时间只有一套配置生效，启用本套会自动停用其他配置
+              </text>
+            </view>
+            <switch :checked="form.enabled === 1" color="#3b6ef6" @change="handleEnabledChange" />
+          </view>
+
           <view class="status-row">
             <text class="status-dot" :class="statusClass"></text>
             <text class="status-text">{{ statusText }}</text>
+            <text class="status-badge" :class="{ enabled: form.enabled === 1 }">
+              {{ form.enabled === 1 ? '已启用' : '未启用' }}
+            </text>
             <text v-if="form.testMessage" class="status-message">{{ form.testMessage }}</text>
           </view>
 
@@ -106,7 +119,8 @@ const form = reactive<StorageConfigItem>({
   bucket: '',
   region: '',
   clientId: '',
-  clientSecret: ''
+  clientSecret: '',
+  enabled: 1
 })
 
 const providers = ref<StorageProviderMeta[]>([
@@ -117,6 +131,11 @@ const providers = ref<StorageProviderMeta[]>([
 ])
 
 const secretConfigured = ref(false)
+/** 数据库里已保存的 provider 及其密钥状态，用于切回时正确回填提示 */
+const savedProvider = ref('')
+const savedHasSecret = ref(false)
+const savedStatus = ref<string | undefined>(undefined)
+const savedTestMessage = ref<string | undefined>(undefined)
 const saving = ref(false)
 const testing = ref(false)
 
@@ -125,11 +144,19 @@ const activeMeta = computed(() => providers.value.find((item) => item.value === 
 function selectProvider(value: string) {
   if (form.provider === value) return
   form.provider = value
-  // 不同 provider 的凭据不可混用，切换时清空密钥与测试结果
+  // 不同 provider 的凭据不可混用，切换时清空本次输入的密钥与测试结果
   form.clientSecret = ''
   form.status = undefined
   form.testMessage = undefined
-  secretConfigured.value = false
+  // 切回已保存的那个 provider 时，密钥与测试结果按库里的实际状态回填
+  const sameAsSaved = value === savedProvider.value
+  secretConfigured.value = sameAsSaved && savedHasSecret.value
+  form.status = sameAsSaved ? savedStatus.value : undefined
+  form.testMessage = sameAsSaved ? savedTestMessage.value : undefined
+}
+
+function handleEnabledChange(event: any) {
+  form.enabled = event?.detail?.value ? 1 : 0
 }
 
 const statusClass = computed(() => {
@@ -164,7 +191,12 @@ async function load() {
       form.status = current.status
       form.testMessage = current.testMessage
       form.lastTestTime = current.lastTestTime
-      secretConfigured.value = Boolean(current.secretConfigured)
+      form.enabled = current.enabled === 1 ? 1 : 0
+      savedProvider.value = form.provider
+      savedHasSecret.value = Boolean(current.secretConfigured)
+      savedStatus.value = current.status
+      savedTestMessage.value = current.testMessage
+      secretConfigured.value = savedHasSecret.value
     }
   } catch (e) {
     uni.showToast({ title: '加载存储配置失败', icon: 'none' })
@@ -178,9 +210,14 @@ async function handleSave() {
     form.id = saved.id
     form.status = saved.status
     form.testMessage = saved.testMessage
+    form.enabled = saved.enabled === 1 ? 1 : 0
     form.clientSecret = ''
-    secretConfigured.value = Boolean(saved.secretConfigured)
-    uni.showToast({ title: '已保存', icon: 'success' })
+    savedProvider.value = saved.provider
+    savedHasSecret.value = Boolean(saved.secretConfigured)
+    savedStatus.value = saved.status
+    savedTestMessage.value = saved.testMessage
+    secretConfigured.value = savedHasSecret.value
+    uni.showToast({ title: form.enabled === 1 ? '已保存并启用' : '已保存（未启用）', icon: 'success' })
   } catch (e: any) {
     uni.showToast({ title: e?.message || '保存失败', icon: 'none' })
   } finally {
@@ -196,6 +233,10 @@ async function handleTest() {
     form.testMessage = result.testMessage
     if (result.id) form.id = result.id
     secretConfigured.value = Boolean(result.secretConfigured)
+    if (form.provider === savedProvider.value) {
+      savedStatus.value = result.status
+      savedTestMessage.value = result.testMessage
+    }
     form.clientSecret = ''
     uni.showModal({
       title: result.status === 'success' ? '测试通过' : '测试失败',
@@ -318,6 +359,37 @@ onMounted(load)
   border-radius: 6px;
   padding: 4px 10px;
   color: #2d3a56;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e6e9f0;
+  border-radius: 10px;
+  background: #fbfcfe;
+}
+
+.switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.status-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8a93a6;
+  background: #f2f5fb;
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.status-badge.enabled {
+  color: #1a7f55;
+  background: #e8f6ef;
 }
 
 .status-row {

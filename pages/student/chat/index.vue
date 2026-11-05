@@ -67,6 +67,15 @@
         >
           <view class="msg-bubble">
             <text class="msg-text" selectable="true">{{ msg.content }}</text>
+            <view v-if="msg.warning" class="msg-warning">{{ msg.warning }}</view>
+            <view v-if="msg.sources && msg.sources.length" class="msg-sources">
+              <text class="sources-label">参考教材</text>
+              <text
+                v-for="(s, si) in msg.sources"
+                :key="si"
+                class="source-chip"
+              >《{{ s.textbookTitle || '教材' }}》{{ pageLabel(s) }}</text>
+            </view>
           </view>
         </view>
         <view v-if="loading" class="msg-item msg-ai">
@@ -105,7 +114,7 @@ import { ref, computed, nextTick } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import { useUserStore } from '@/store/user'
-import { sendMessage, type ChatMessage } from '@/api/chat'
+import { sendMessage, type ChatMessage, type SourceRef } from '@/api/chat'
 import { getStudentClasses, type ClassInfo } from '@/api/class'
 import { listPublicAgents, type PublicAgent } from '@/api/agent-config'
 
@@ -203,6 +212,27 @@ function scrollToBottom() {
   })
 }
 
+/** 教材出处页码文本 */
+function pageLabel(s: SourceRef): string {
+  const start = s.startPage
+  const end = s.endPage ?? start
+  if (start == null) return ''
+  return start === end ? `第 ${start} 页` : `第 ${start}-${end} 页`
+}
+
+/** 同一教材同一页只展示一次 */
+function dedupeSources(list: SourceRef[]): SourceRef[] {
+  const seen = new Set<string>()
+  const result: SourceRef[] = []
+  for (const s of list) {
+    const key = `${s.textbookId || ''}|${s.startPage ?? ''}|${s.endPage ?? ''}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    result.push(s)
+  }
+  return result
+}
+
 /** 发送消息 */
 async function handleSend() {
   const text = inputText.value.trim()
@@ -246,7 +276,9 @@ async function handleSend() {
       role: 'assistant',
       content: result.response,
       timestamp: result.timestamp || new Date().toISOString(),
-      message_id: result.message_id
+      message_id: result.message_id,
+      sources: dedupeSources(result.sources || []),
+      warning: result.warning || null
     })
 
     if (!sessionId.value && result.session_id) {
@@ -520,6 +552,43 @@ button::after {
   line-height: 1.7;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+/* 回答引用出处 */
+.msg-sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.sources-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+
+.source-chip {
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* 检索未命中等提示 */
+.msg-warning {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(196, 138, 42, 0.12);
+  color: #8A5A12;
+  font-size: 11.5px;
+  line-height: 1.6;
 }
 
 .msg-ai .loading-bubble {

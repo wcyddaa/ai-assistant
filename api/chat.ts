@@ -9,12 +9,25 @@ const CHAT_API_BASE = 'http://localhost:8000'
 /** 消息角色 */
 export type MessageRole = 'user' | 'assistant' | 'system'
 
+/** 回答引用的教材出处 */
+export interface SourceRef {
+  textbookId?: string | null
+  textbookTitle?: string | null
+  startPage?: number | null
+  endPage?: number | null
+  score?: number | null
+}
+
 /** 聊天消息 */
 export interface ChatMessage {
   role: MessageRole
   content: string
   timestamp: string
   message_id?: string | null
+  /** 本次回答引用的教材页码 */
+  sources?: SourceRef[]
+  /** 后端提示（如教材检索未命中） */
+  warning?: string | null
 }
 
 /** 会话信息 */
@@ -58,6 +71,10 @@ export interface SendMessageResponse {
   session_id: string
   message_id: string | null
   timestamp: string
+  /** 教材检索未命中等提示 */
+  warning?: string | null
+  /** 本次回答引用的教材页码 */
+  sources?: SourceRef[] | null
 }
 
 /** 通用 API 响应包装 */
